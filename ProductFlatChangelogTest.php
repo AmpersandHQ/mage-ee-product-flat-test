@@ -13,8 +13,9 @@ class ProductFlatChangelogTest extends PHPUnit_Framework_TestCase
         $description = 'Mage EE product flat index bug test script created this product: ' . now();
         
         try {
+            $this->enableFlatTable();
             $this->disableLiveReindexObserver();
-            $productIds = $this->createProducts($description, 550);
+            $productIds = $this->createProducts($description, 100);
             $this->processChangelog();
             $this->validateFlatTable($productIds, $description);
         } catch (Exception $e) {
@@ -35,11 +36,17 @@ class ProductFlatChangelogTest extends PHPUnit_Framework_TestCase
         Enterprise_Index_Model_Lock::getInstance()->releaseLock(Enterprise_Index_Model_Observer::REINDEX_FULL_LOCK);
     }
     
+    private function enableFlatTable()
+    {
+        Mage::getConfig()->setNode('default/catalog/frontend/flat_catalog_product', 1);
+    }
+    
     private function disableLiveReindexObserver()
     {
-        Mage::app()->getConfig()
-            ->getNode('global/events/catalog_product_save_commit_after/observers/enterprise_product_flat')
-                ->addChild('type', 'disabled');
+        Mage::getConfig()->setNode(
+            'global/events/catalog_product_save_commit_after/observers/enterprise_product_flat/type',
+            'disabled'
+        );
     }
     
     private function createProducts($description, $limit)
@@ -58,7 +65,7 @@ class ProductFlatChangelogTest extends PHPUnit_Framework_TestCase
                 array(
                     'status' => Mage_Catalog_Model_Product_Status::STATUS_ENABLED,
                     'name' => $sku,
-                    'description' => $description,
+                    'short_description' => $description,
                 )
             );
         }
@@ -68,26 +75,26 @@ class ProductFlatChangelogTest extends PHPUnit_Framework_TestCase
     
     private function processChangelog()
     {
-        $indexerData = Mage::app()->getConfig()->getNode(
+        $indexerData = Mage::app()->getNode(
             Enterprise_Index_Helper_Data::XML_PATH_INDEXER_DATA . '/catalog_product_flat'
         );
         
         Mage::getModel('enterprise_mview/client')
             ->init((string)$indexerData->index_table)
-            ->excecute((string)$indexerData->action_model->changelog);
+            ->execute((string)$indexerData->action_model->changelog);
     }
     
     private function validateFlatTable(array $productIds, $description)
     {
         $table = new Zend_Db_Table(array(
-            'adapter' => Mage::getSingleton('core/resource')->getConnection(Mage_Core_Model_Resource::DEFAULT_READ_RESOURCE),
-            'name' => 'catalog_product_flat',
+            'db' => Mage::getSingleton('core/resource')->getConnection(Mage_Core_Model_Resource::DEFAULT_READ_RESOURCE),
+            'name' => 'catalog_product_flat_1',
         ));
         
         foreach ($productIds as $productId) {
-            $row = $table->fetchRow(array('entity_id = ?', $productId));
+            $row = $table->fetchRow(array('entity_id = ?' => $productId));
             $this->assertNotNull($row);
-            $this->assertEquals($description, $row->description);
+            $this->assertEquals($description, $row->short_description);
         }
     }
 }
