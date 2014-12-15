@@ -1,6 +1,4 @@
 <?php
-require_once __DIR__ . '/../../../app/Mage.php';
-
 class ProductFlatChangelogTest extends PHPUnit_Framework_TestCase
 {
     public function testMoreThan500Changes()
