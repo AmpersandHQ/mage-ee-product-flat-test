@@ -1,0 +1,15 @@
+{
+    "name": "ampersand/mage-ee-product-flat-test",
+    "description": "A unit test for Magento Enterprise Edition's flat product indexing functionality.",
+    "require": {
+        "phpunit/phpunit": "~4.0"
+    },
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Josh Di Fabio",
+            "email": "jd@amp.co"
+        }
+    ],
+    "minimum-stability": "dev"
+}
