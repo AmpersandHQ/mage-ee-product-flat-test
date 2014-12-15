@@ -14,8 +14,8 @@ class ProductFlatChangelogTest extends PHPUnit_Framework_TestCase
         
         try {
             $this->enableFlatTable();
-            $this->disableLiveReindexObserver();
-            $productIds = $this->createProducts($description, 100);
+            $this->disableLiveReindex();
+            $productIds = $this->createProducts($description, 550);
             $this->processChangelog();
             $this->validateFlatTable($productIds, $description);
         } catch (Exception $e) {
@@ -41,11 +41,11 @@ class ProductFlatChangelogTest extends PHPUnit_Framework_TestCase
         Mage::getConfig()->setNode('default/catalog/frontend/flat_catalog_product', 1);
     }
     
-    private function disableLiveReindexObserver()
+    private function disableLiveReindex()
     {
-        Mage::getConfig()->setNode(
-            'global/events/catalog_product_save_commit_after/observers/enterprise_product_flat/type',
-            'disabled'
+        Mage::app()->getStore()->setConfig(
+            Enterprise_Catalog_Model_Index_Observer_Flat::XML_PATH_LIVE_PRODUCT_REINDEX_ENABLED,
+            0
         );
     }
     
@@ -75,7 +75,7 @@ class ProductFlatChangelogTest extends PHPUnit_Framework_TestCase
     
     private function processChangelog()
     {
-        $indexerData = Mage::app()->getNode(
+        $indexerData = Mage::getConfig()->getNode(
             Enterprise_Index_Helper_Data::XML_PATH_INDEXER_DATA . '/catalog_product_flat'
         );
         
