@@ -3,6 +3,8 @@ class ProductFlatChangelogTest extends PHPUnit_Framework_TestCase
 {
     public function testMoreThan500Changes()
     {
+        Mage::app();
+        
         // ensure a full re-index does not run for the duration of this test
         if (!$this->acquireReindexLock()) {
             throw new Exception('Full reindex process is already running.');
@@ -66,9 +68,13 @@ class ProductFlatChangelogTest extends PHPUnit_Framework_TestCase
     
     private function processChangelog()
     {
+        $indexerData = Mage::app()->getConfig()->getNode(
+            Enterprise_Index_Helper_Data::XML_PATH_INDEXER_DATA . '/catalog_product_flat'
+        );
+        
         Mage::getModel('enterprise_mview/client')
-            ->init('catalog_product_flat')
-            ->execute();
+            ->init((string)$indexerData->index_table)
+            ->excecute((string)$indexerData->action_model->changelog);
     }
     
     private function validateFlatTable(array $productIds, $description)
