@@ -1,12 +1,6 @@
 <?php
 class ProductFlatChangelogTest extends PHPUnit_Framework_TestCase
 {
-    const XML_PATH_FLAT_TABLE_ENABLED = 'default/catalog/frontend/flat_catalog_product';
-    const XML_PATH_LIVE_REINDEX_ENABLED = Enterprise_Catalog_Model_Index_Observer_Flat::XML_PATH_LIVE_PRODUCT_REINDEX_ENABLED;
-    const LOCK_NAME = Enterprise_Index_Model_Observer::REINDEX_FULL_LOCK;
-    
-    private $client;
-    private $changelogModel;
     private $indexTable;
     private $changelogTable;
     
@@ -15,15 +9,6 @@ class ProductFlatChangelogTest extends PHPUnit_Framework_TestCase
         parent::__construct($name, $data, $dataName);
         
         Mage::app();
-        
-        $indexerData = Mage::getConfig()->getNode(
-            Enterprise_Index_Helper_Data::XML_PATH_INDEXER_DATA . '/catalog_product_flat'
-        );
-        
-        $this->client = Mage::getModel('enterprise_mview/client')
-            ->init((string)$indexerData->index_table);
-        
-        $this->changelogModel = (string)$indexerData->action_model->changelog;
         
         $connection = Mage::getSingleton('core/resource')
             ->getConnection(Mage_Core_Model_Resource::DEFAULT_READ_RESOURCE);
@@ -35,33 +20,54 @@ class ProductFlatChangelogTest extends PHPUnit_Framework_TestCase
         
         $this->changelogTable = new Zend_Db_Table(array(
             'db' => $connection,
-            'name' => $this->client->getMetadata()->getChangelogName(),
+            'name' => 'catalog_product_flat_cl',
         ));
     }
     
     public function testMoreThan500Changes()
     {
         // ensure a full re-index does not run for the duration of this test
-        if (!Enterprise_Index_Model_Lock::getInstance()->setLock(self::LOCK_NAME)) {
+        if (!$this->acquireReindexLock()) {
             throw new Exception('Full reindex process is already running.');
         }
 
         $description = 'Mage EE product flat index bug test script created this product: ' . now();
         
         try {
-            // force enable the flat table for this process
-            Mage::getConfig()->setNode(self::XML_PATH_FLAT_TABLE_ENABLED, 1);
-            // force disable live reindex for this process
-            Mage::app()->getStore()->setConfig(self::XML_PATH_LIVE_REINDEX_ENABLED, 0);
+            $this->enableFlatTable();
+            $this->disableLiveReindex();
             $productIds = $this->createProducts($description, 550);
             $this->processChangelog();
             $this->validateFlatTable($productIds, $description);
         } catch (Exception $e) {
-            Enterprise_Index_Model_Lock::getInstance()->releaseLock(self::LOCK_NAME);
+            $this->releaseReindexLock();
             throw $e;
         }
 
-        Enterprise_Index_Model_Lock::getInstance()->releaseLock(self::LOCK_NAME);
+        $this->releaseReindexLock();
+    }
+    
+    private function acquireReindexLock()
+    {
+        return Enterprise_Index_Model_Lock::getInstance()->setLock(Enterprise_Index_Model_Observer::REINDEX_FULL_LOCK);
+    }
+    
+    private function releaseReindexLock()
+    {
+        Enterprise_Index_Model_Lock::getInstance()->releaseLock(Enterprise_Index_Model_Observer::REINDEX_FULL_LOCK);
+    }
+    
+    private function enableFlatTable()
+    {
+        Mage::getConfig()->setNode('default/catalog/frontend/flat_catalog_product', 1);
+    }
+    
+    private function disableLiveReindex()
+    {
+        Mage::app()->getStore()->setConfig(
+            Enterprise_Catalog_Model_Index_Observer_Flat::XML_PATH_LIVE_PRODUCT_REINDEX_ENABLED,
+            0
+        );
     }
     
     private function createProducts($description, $limit)
@@ -90,10 +96,17 @@ class ProductFlatChangelogTest extends PHPUnit_Framework_TestCase
     
     private function processChangelog()
     {
-        $metadata = $this->client->getMetadata();
+        $indexerData = Mage::getConfig()->getNode(
+            Enterprise_Index_Helper_Data::XML_PATH_INDEXER_DATA . '/catalog_product_flat'
+        );
+        
+        $client = Mage::getModel('enterprise_mview/client')
+            ->init((string)$indexerData->index_table);
+        
+        $metadata = $client->getMetadata();
         
         do {
-            $this->client->execute($this->changelogModel);
+            $client->execute((string)$indexerData->action_model->changelog);
             $metadata->load($metadata->getId());
         } while ($metadata->getVersionId() < $this->getMaxVersionId());
     }
@@ -109,9 +122,11 @@ class ProductFlatChangelogTest extends PHPUnit_Framework_TestCase
     
     private function getMaxVersionId()
     {
-        return $this->changelogTable->select(Zend_Db_Table::SELECT_WITH_FROM_PART)
+        $result = $this->changelogTable->select(Zend_Db_Table::SELECT_WITH_FROM_PART)
             ->columns(array('max_version_id' => 'MAX(version_id)'))
             ->query()
                 ->fetchObject();
+        
+        return $result->max_version_id;
     }
 }
