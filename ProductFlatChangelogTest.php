@@ -1,4 +1,16 @@
 <?php
+/**
+ * There is a bug affecting Magento Enterprise's product flat index. Specifically, when the
+ * changelog index action attempts to process more than 500 products in one go, only the first 500
+ * products will actually be processed correctly while Magento will effectively skip the remainder
+ * of the products. Despite skipping some products, Magento will mark the changelog as being fully
+ * processed, meaning some products will indefinitely remain out of date in the product flat tables.
+ * 
+ * This test script can be run against a Magento Enterprise installation and proves this bug. This
+ * script should not be run on a production environment.
+ * 
+ * @author Josh Di Fabio <jd@amp.co>
+ */
 class ProductFlatChangelogTest extends PHPUnit_Framework_TestCase
 {
     private $indexTable;
