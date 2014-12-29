@@ -26,4 +26,4 @@ The following scenario should make the process a bit clearer:
 
 When more than 500 products are changed between two executions of the indexer, the changes made to all but the first 500 products will be disregarded by Magento.
 
-* Technically, only a subset of product attributes appear in the flat tables.
+\* Technically, only a subset of product attributes appear in the flat tables.
