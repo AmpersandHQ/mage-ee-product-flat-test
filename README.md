@@ -75,7 +75,7 @@ The easiest solution is to remove the static condition from ``_reindex()``. Mage
 
 In order to prove this bug and any fix which is produced, this repository includes a PHPUnit test case which can be run against vanilla Magento Enterprise Edition installations. This test case has been run against Magento Enterprise Edition >=1.13.0.0,<=1.14.1.0 and the bug exists on all of those versions. Note that 1.14.1.0 is the latest version of Magento Enterprise Edition at the time of writing.
 
-Note that this test case saves over 500 products to the MySQL database of the Magento instance and can take several minutes to complete. It should not be executed on a product instance of Magento.
+Note that this test case saves over 500 products to the MySQL database of the Magento instance and can take several minutes to complete. It should not be executed on a production instance of Magento.
 
 ### Downloading the PHPUnit Test ###
 
