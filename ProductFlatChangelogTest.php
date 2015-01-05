@@ -86,12 +86,15 @@ class ProductFlatChangelogTest extends PHPUnit_Framework_TestCase
     {
         $createdProductIds = array();
 
+        $productResource = Mage::getResourceSingleton('catalog/product');
         $productApi = Mage::getSingleton('catalog/product_api');
         $attributeSetId = Mage::getSingleton('catalog/product')->getDefaultAttributeSetId();
         for ($i = 0; $i < $limit; $i++) {
-            $sku = 'EE-INDEX-BUG-' . str_pad(mt_rand(1, 1000000), 7, 0);
+            do {
+                $sku = 'EE-INDEX-BUG-' . str_pad(mt_rand(1, 1000000), 7, 0);
+            } while ($productResource->getIdBySku($sku));
 
-            $createdProductIds[] = $productApi->create(
+            $createdProductIds[$sku] = $productApi->create(
                 Mage_Catalog_Model_Product_Type::TYPE_SIMPLE,
                 $attributeSetId,
                 $sku,
@@ -125,10 +128,14 @@ class ProductFlatChangelogTest extends PHPUnit_Framework_TestCase
     
     private function validateFlatTable(array $productIds, $description)
     {
-        foreach ($productIds as $productId) {
+        foreach ($productIds as $sku => $productId) {
             $row = $this->indexTable->fetchRow(array('entity_id = ?' => $productId));
-            $this->assertNotNull($row);
-            $this->assertEquals($description, $row->short_description);
+            $this->assertNotNull($row, sprintf('Product with SKU %s not found in flat table.', $sku));
+            $this->assertEquals(
+                $description,
+                $row->short_description,
+                sprintf('Product with SKU %s has wrong short description in flat table.', $sku)
+            );
         }
     }
     
