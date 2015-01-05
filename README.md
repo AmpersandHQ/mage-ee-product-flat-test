@@ -93,3 +93,33 @@ composer require ampersand/mage-ee-product-flat-test
 cd vendor/ampersand/mage-ee-product-flat-test
 ../../bin/phpunit
 ```
+
+The test case creates 550 products before running the product flat indexing process. For each product, two assertions are made to check that the index is correct: first, it is asserted that the product is present in the flat table, and second, it is asserted that the product is up-to-date in the flat table.
+
+When executing the test case against a vanilla installation of Magento Enterprise Edition you should see a failure message similar to the following:
+
+```
+Time: 3.02 minutes, Memory: 47.50Mb
+
+There was 1 failure:
+
+1) ProductFlatChangelogTest::testMoreThan500Changes
+Product with SKU EE-INDEX-BUG-4212650 not found in flat table.
+Failed asserting that null is not null.
+
+/ampersand/builds/ee-1.13.1.0/vendor/ampersand/mage-ee-product-flat-test/ProductFlatChangelogTest.php:133
+/ampersand/builds/ee-1.13.1.0/vendor/ampersand/mage-ee-product-flat-test/ProductFlatChangelogTest.php:53
+                                        
+FAILURES!                               
+Tests: 1, Assertions: 1001, Failures: 1.
+```
+
+The above output tells us that the 1001st assertion failed, which implies that the first 1000 assertions succeeded. Given that there are two assertions made per product saved, those 1000 successful assertions represent 500 valid products, with the 501st product being invalid. This tells us that Magento has failed to re-index at least one product and is the expected output when executing this test case against a vanilla installation of Magento Enterprise Edition.
+
+After removing the static condition from the broken `_reindex()` method as described earlier, the test case should run successfully and produce an output similar to the following:
+
+```
+Time: 3.03 minutes, Memory: 47.50Mb
+
+OK (1 test, 1100 assertions)
+```
