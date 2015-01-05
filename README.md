@@ -69,11 +69,11 @@ It is evident from the above code snippet that Magento Enterprise intends to cal
 
 ## The Solution ##
 
-The easiest solution is to remove the static condition from ``_reindex()``. Magento were obviously hoping to improve performance with the run-once-per-process condition, but in practice doing so shaves a few milliseconds off a process which usually takes tens of seconds to run. My suggestion is to simply remove the condition so that the code block within it runs on every method invokation.
+The easiest solution is to remove the static condition from ``_reindex()``. Magento were obviously hoping to improve performance with the run-once-per-process condition, but in practice doing so shaves a few milliseconds off a process which usually takes several seconds to run. The most simple solution would be to remove the static condition so that the code block within it runs on every method invokation.
 
 ## Proving the Bug ##
 
-In order to prove this bug and any fix which is produced, this repository includes a PHPUnit test case which can be run on a vanilla Magento Enterprise Edition installation. This test case has been run against Magento Enterprise Edition >=1.13.0.0,<=1.14.1.0 and the bug exists on all of those versions. Note that 1.14.1.0 is the latest version of Magento Enterprise Edition at the time of writing.
+In order to prove this bug and any fix which is produced, this repository includes a PHPUnit test case which can be run against vanilla Magento Enterprise Edition installations. This test case has been run against Magento Enterprise Edition >=1.13.0.0,<=1.14.1.0 and the bug exists on all of those versions. Note that 1.14.1.0 is the latest version of Magento Enterprise Edition at the time of writing.
 
 Note that this test case saves over 500 products to the MySQL database of the Magento instance and can take several minutes to complete. It should not be executed on a product instance of Magento.
 
