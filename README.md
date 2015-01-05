@@ -29,7 +29,7 @@ The following scenario should make the process a bit clearer:
 When there are more than 500 distinct unprocessed product ID's in the product flat changelog, the product flat indexer will only process 500 of those products, but will mark all of them as having been processed. As a result, product data will display incorrectly on the front-end indefinitely.
 
 The bug only affects the product flat index, and can be traced to a single method:
-```
+```php
 Enterprise_Catalog_Model_Index_Action_Product_Flat_Refresh
 
 protected function _reindex($storeId, array $changedIds = array())
@@ -49,7 +49,7 @@ Looking at the snippet of code above, it is apparent that the code block within 
 
 When processing the flat product index, Magento Enterprise splits the backlog of product ID's into batches of 500 products and processes each batch in sequence within a single PHP process, as described below:
 
-```
+```php
 Enterprise_Catalog_Model_Index_Action_Product_Flat_Refresh_Changelog
   extends Enterprise_Catalog_Model_Index_Action_Product_Flat_Refresh
 
