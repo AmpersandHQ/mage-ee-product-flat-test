@@ -1,6 +1,6 @@
 # Magento EE Product Flat Index Bug #
 
-Magento applications maintain a number of tables in the database called *indexes* which are designed to optimise front-end performance. These index tables essentially provide a simplified view of EAV data held elsewhere in the database.
+Magento applications maintain a number of tables in the database called *indexes* which are designed to optimise front-end performance. These index tables essentially provide a simplified view of data held elsewhere in the database.
 
 Magento Enterprise Edition maintains a number *changelog* tables. Every time a product or category is created, updated or deleted the ID of the product or category will be written to the changelog tables using MySQL triggers.
 
@@ -22,8 +22,74 @@ The following scenario should make the process a bit clearer:
 12:01:30 John visits the front-end again and finds that his changes have now taken effect.
 ```
 
+\* Technically, only a subset of product attributes appear in the flat tables.
+
 ## The Problem ##
 
-When more than 500 products are changed between two executions of the indexer, the changes made to all but the first 500 products will be disregarded by Magento.
+When there are more than 500 distinct unprocessed product ID's in the product flat changelog, the product flat indexer will only process 500 of those products, but will mark all of them as having been processed. As a result, product data will display incorrectly on the front-end indefinitely.
 
-\* Technically, only a subset of product attributes appear in the flat tables.
+The bug only affects the product flat index, and can be traced to a single method:
+```
+Enterprise_Catalog_Model_Index_Action_Product_Flat_Refresh
+
+protected function _reindex($storeId, array $changedIds = array())
+{
+    ...
+    if (!self::$_calls) { // code within this block only executes once per PHP process
+        $this->_fillTemporaryEntityTable($entityTableName, $entityTableColumns, $changedIds);
+        ...
+        $this->_fillTemporaryTable($tableName, $columns, $changedIds);
+    }
+    ...
+    self::$_calls++;
+    ...
+}
+```
+Looking at the snippet of code above, it is apparent that the code block within the `if (!self::$_calls)` statement will only ever be executed once within the context of a PHP process, regardless of the number of calls to `_reindex()`. However, `$changedIds` is provided as an argument to the method and is used within the run-once code block to 'fill temporary entity table' and 'fill temporary table'. As such, those temporary tables are filled using the `$changedIds` provided in the first invokation of `_reindex()` only, so all but the first invokation of `_reindex()` will fail to behave as expected.
+
+When processing the flat product index, Magento Enterprise splits the backlog of product ID's into batches of 500 products and processes each batch in sequence within a single PHP process, as described below:
+
+```
+Enterprise_Catalog_Model_Index_Action_Product_Flat_Refresh_Changelog
+  extends Enterprise_Catalog_Model_Index_Action_Product_Flat_Refresh
+
+public function execute()
+{
+  ...
+  $idsBatches = array_chunk($changedIds, Mage::helper('enterprise_index')->getBatchSize());
+  
+  foreach ($idsBatches as $ids) {
+      $this->_reindex($store->getId(), $ids);
+  }
+  ...
+}
+```
+
+It is evident from the above code snippet that Magento Enterprise intends to call the broken ``_reindex()`` method multiple times with different product ID's within the context of a single PHP process, which will not work.
+
+## The Solution ##
+
+The easiest solution is to remove the static condition from ``_reindex()``. Magento were obviously hoping to improve performance with the run-once-per-process condition, but in practice doing so shaves a few milliseconds off a process which usually takes tens of seconds to run. My suggestion is to simply remove the condition so that the code block within it runs on every method invokation.
+
+## Proving the Bug ##
+
+In order to prove this bug and any fix which is produced, this repository includes a PHPUnit test case which can be run on a vanilla Magento Enterprise Edition installation. I have run this test against vanilla installations of Magento Enterprise Edition >=1.13.0.0,<=1.14.1.0 and the bug exists on all of those versions. Note that 1.14.1.0 is the latest version of Magento Enterprise Edition at the time of writing.
+
+This test case requires a fully-installed instance of Magento Enterprise Edition. Do not run the test on a production instance of Magento.
+
+Note that this test case saves over 500 products to the MySQL database of the Magento instance and can take several minutes to complete.
+
+### Downloading the PHPUnit Test ###
+
+Navigate to the root of your Magento installation and download the test case using Composer:
+
+```
+composer require ampersand/mage-ee-product-flat-test
+```
+
+### Executing the PHPUnit Test ###
+
+```
+cd vendor/ampersand/mage-ee-product-flat-test
+../../bin/phpunit
+```
