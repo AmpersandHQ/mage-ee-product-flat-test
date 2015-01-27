@@ -2,7 +2,7 @@
 
 Magento applications maintain a number of tables in the database called *indexes* which are designed to optimise front-end performance. These index tables essentially provide a simplified view of data held elsewhere in the database.
 
-Magento Enterprise Edition maintains a number *changelog* tables. Every time a product or category is created, updated or deleted the ID of the product or category will be written to the changelog tables using MySQL triggers.
+Magento Enterprise Edition maintains a number of *changelog* tables. Every time a product or category is created, updated or deleted the ID of the product or category will be written to the changelog tables using MySQL triggers.
 
 Up to once per minute, via cron, Magento will read any new ID's from the changelog tables and re-generate any related rows in the index tables, ensuring that the latest data is visible on the front-end of the website.
 
