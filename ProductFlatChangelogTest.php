@@ -54,8 +54,11 @@ class ProductFlatChangelogTest extends PHPUnit_Framework_TestCase
             $this->enableFlatTable();
             $this->disableLiveReindex();
 
-            $entityId = $this->getNewestProductId();
-            $this->simulate500changes($entityId);
+            $lastProductId = $this->getLastProductId();
+            
+            // skip the ID that our new product will use
+            $this->simulate500changes($lastProductId + 2);
+            
             $productIds = $this->createProducts($description, 1);
 
             $this->processChangelog();
@@ -94,7 +97,7 @@ class ProductFlatChangelogTest extends PHPUnit_Framework_TestCase
     /**
      * @author Joseph McDermott <code@josephmcdermott.co.uk>
      */
-    private function getNewestProductId()
+    private function getLastProductId()
     {
         $productId = $this->productTable->select(Zend_Db_Table::SELECT_WITH_FROM_PART)
             ->columns(array('entity_id'))
@@ -110,9 +113,6 @@ class ProductFlatChangelogTest extends PHPUnit_Framework_TestCase
      */
     private function simulate500changes($startEntityId)
     {
-        // skip the ID that our new product will use
-        $startEntityId += 2;
-
         for ($i = $startEntityId; $i < $startEntityId + 550; $i++) {
             $this->changelogTable->insert(array(
                 'version_id' => NULL,
