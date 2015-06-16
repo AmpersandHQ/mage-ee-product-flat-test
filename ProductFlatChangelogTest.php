@@ -34,6 +34,11 @@ class ProductFlatChangelogTest extends PHPUnit_Framework_TestCase
             'db' => $connection,
             'name' => 'catalog_product_flat_cl',
         ));
+
+        $this->productTable = new Zend_Db_Table(array(
+            'db' => $connection,
+            'name' => 'catalog_product_entity',
+        ));
     }
     
     public function testMoreThan500Changes()
@@ -48,7 +53,14 @@ class ProductFlatChangelogTest extends PHPUnit_Framework_TestCase
         try {
             $this->enableFlatTable();
             $this->disableLiveReindex();
-            $productIds = $this->createProducts($description, 550);
+
+            $lastProductId = $this->getLastProductId();
+            
+            // skip the ID that our new product will use
+            $this->simulate500changes($lastProductId + 2);
+            
+            $productIds = $this->createProducts($description, 1);
+
             $this->processChangelog();
             $this->validateFlatTable($productIds, $description);
         } catch (Exception $e) {
@@ -80,6 +92,33 @@ class ProductFlatChangelogTest extends PHPUnit_Framework_TestCase
             Enterprise_Catalog_Model_Index_Observer_Flat::XML_PATH_LIVE_PRODUCT_REINDEX_ENABLED,
             0
         );
+    }
+    
+    /**
+     * @author Joseph McDermott <code@josephmcdermott.co.uk>
+     */
+    private function getLastProductId()
+    {
+        $productId = $this->productTable->select(Zend_Db_Table::SELECT_WITH_FROM_PART)
+            ->columns(array('entity_id'))
+            ->order('entity_id DESC')
+            ->query()
+            ->fetchColumn();
+
+        return $productId;
+    }
+    
+    /**
+     * @author Joseph McDermott <code@josephmcdermott.co.uk>
+     */
+    private function simulate500changes($startEntityId)
+    {
+        for ($i = $startEntityId; $i < $startEntityId + 550; $i++) {
+            $this->changelogTable->insert(array(
+                'version_id' => NULL,
+                'entity_id' => $i,
+            ));
+        }
     }
     
     private function createProducts($description, $limit)
